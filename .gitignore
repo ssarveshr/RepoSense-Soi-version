@@ -62,3 +62,5 @@ Thumbs.db
 .project
 .pydevproject
 .settings/
+backend/storage/repo_db/chroma.sqlite3 
+backend/storage/repo_db/ 
