@@ -18,6 +18,12 @@ class RepoSenseEngine:
             name="repositories",
             metadata={"hnsw:space": "cosine"}
         )
+        
+        # 4. Create or get the collection for documentation
+        self.doc_collection = self.client.get_or_create_collection(
+            name="documentation",
+            metadata={"hnsw:space": "cosine"}
+        )
 
     def add_repository(self, name, description, url, stars, category, readme=""):
         """Adds a repository to the vector database."""
@@ -124,6 +130,46 @@ class RepoSenseEngine:
         # 4. Sort and limit
         ranked_list.sort(key=lambda x: x['match_score'], reverse=True)
         return ranked_list[:limit]
+
+    def add_document_chunk(self, doc_id, chunk_text, metadata):
+        """Adds a document chunk to the documentation vector database."""
+        embedding = self.model.encode(chunk_text).tolist()
+        self.doc_collection.upsert(
+            ids=[doc_id],
+            embeddings=[embedding],
+            metadatas=[metadata],
+            documents=[chunk_text]
+        )
+
+    def search_documentation(self, query, limit=5):
+        """Semantic search on the documentation collection."""
+        query_embedding = self.model.encode(query).tolist()
+        results = self.doc_collection.query(
+            query_embeddings=[query_embedding],
+            n_results=limit
+        )
+        
+        formatted_results = []
+        if not results['ids'] or not results['ids'][0]:
+            return []
+
+        for i in range(len(results['ids'][0])):
+            meta = results['metadatas'][0][i]
+            similarity = 1.0 - results['distances'][0][i]
+            
+            formatted_results.append({
+                "id": results['ids'][0][i],
+                "title": meta.get('title', 'Untitled'),
+                "source": meta.get('source', 'Unknown'),
+                "url": meta.get('url', ''),
+                "file_path": meta.get('file_path', ''),
+                "chunk_index": meta.get('chunk_index', 0),
+                "content": results['documents'][0][i],
+                "match_score": round(similarity, 4)
+            })
+            
+        formatted_results.sort(key=lambda x: x['match_score'], reverse=True)
+        return formatted_results
 
 # Singleton instance
 engine = RepoSenseEngine()

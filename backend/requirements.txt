@@ -6,3 +6,6 @@ requests
 python-multipart
 tf-keras
 numpy<2.0.0
+beautifulsoup4
+markdownify
+pymupdf
